@@ -12,13 +12,13 @@ from playwright.async_api import async_playwright
 NTFY_TOPIC = "tobi_hoermann_homee_9941"
 
 # ==========================================
-# 2. PREIS-LIMITS (MIN: 50 CHF / 54.50 EUR)
+# 2. PREIS-LIMITS (MAX: 200 EUR / 183 CHF)
 # ==========================================
-MIN_PREIS_CHF = 50.00    # Mindestpreis Schweiz (filtert Zubehör/Kabel aus)
-MAX_PREIS_CHF = 180.00   # Maximales Budget Schweiz
+MIN_PREIS_CHF = 50.00    # Standard-Mindestpreis für Shops
+MAX_PREIS_CHF = 183.00   # Entspricht 200 EUR beim aktuellen Kurs
 
-MIN_PREIS_EUR = 54.50    # Entspricht exakt 50 CHF beim aktuellen Kurs
-MAX_PREIS_EUR = 195.00   # Entspricht ca. 180 CHF
+MIN_PREIS_EUR = 54.50    # Standard-Mindestpreis für EU-Shops
+MAX_PREIS_EUR = 200.00   # Maximales Budget EUR
 
 CACHE_FILE = "seen_deals.json"
 PARALLELE_TABS = 4
@@ -35,18 +35,18 @@ BLACKLIST = [
 ]
 
 # ==========================================
-# 4. KLEINANZEIGEN, EU-AMAZONS & TOR-FACHHÄNDLER (ALLE 34 QUELLEN)
+# 4. AUKTIONEN AB 1 CHF/EUR, KLEINANZEIGEN, EU-AMAZONS & FACHHÄNDLER
 # ==========================================
 TARGETS = [
-    # --- KLEINANZEIGEN & GEBRAUCHTMARKT (CH, DE, AT) ---
-    {"name": "Tutti.ch (Hörmann)", "currency": "CHF", "url": "https://www.tutti.ch/de/q/H%C3%B6rmann+homee"},
-    {"name": "Tutti.ch (Hoermann)", "currency": "CHF", "url": "https://www.tutti.ch/de/q/Hoermann+homee"},
-    {"name": "Ricardo.ch (Sofort-Kaufen)", "currency": "CHF", "url": "https://www.ricardo.ch/de/s/H%C3%B6rmann%20homee/?offer_type=fixed_price"},
-    {"name": "Ricardo.ch (Hoermann)", "currency": "CHF", "url": "https://www.ricardo.ch/de/s/Hoermann%20homee/?offer_type=fixed_price"},
-    {"name": "Kleinanzeigen.de", "currency": "EUR", "url": "https://www.kleinanzeigen.de/s-h%C3%B6rmann-homee/k0"},
-    {"name": "eBay.de (Sofort-Kaufen)", "currency": "EUR", "url": "https://www.ebay.de/sch/i.html?_nkw=H%C3%B6rmann+homee&LH_BIN=1"},
-    {"name": "eBay.ch (Sofort-Kaufen)", "currency": "CHF", "url": "https://www.ebay.ch/sch/i.html?_nkw=H%C3%B6rmann+homee&LH_BIN=1"},
-    {"name": "Willhaben.at", "currency": "EUR", "url": "https://www.willhaben.at/iad/kaufen-und-verkaufen/marktplatz?keyword=H%C3%B6rmann+homee"},
+    # --- AUKTIONEN & KLEINANZEIGEN (AB 1 CHF / 1 EUR FREIGESCHALTET!) ---
+    {"name": "Tutti.ch (Hörmann)", "currency": "CHF", "min_price": 1.00, "url": "https://www.tutti.ch/de/q/H%C3%B6rmann+homee"},
+    {"name": "Tutti.ch (Hoermann)", "currency": "CHF", "min_price": 1.00, "url": "https://www.tutti.ch/de/q/Hoermann+homee"},
+    {"name": "Ricardo.ch (Auktion & Sofort)", "currency": "CHF", "min_price": 1.00, "url": "https://www.ricardo.ch/de/s/H%C3%B6rmann%20homee/"},
+    {"name": "Ricardo.ch (Hoermann)", "currency": "CHF", "min_price": 1.00, "url": "https://www.ricardo.ch/de/s/Hoermann%20homee/"},
+    {"name": "Kleinanzeigen.de", "currency": "EUR", "min_price": 1.00, "url": "https://www.kleinanzeigen.de/s-h%C3%B6rmann-homee/k0"},
+    {"name": "eBay.de (Auktion & Sofort)", "currency": "EUR", "min_price": 1.00, "url": "https://www.ebay.de/sch/i.html?_nkw=H%C3%B6rmann+homee"},
+    {"name": "eBay.ch (Auktion & Sofort)", "currency": "CHF", "min_price": 1.00, "url": "https://www.ebay.ch/sch/i.html?_nkw=H%C3%B6rmann+homee"},
+    {"name": "Willhaben.at", "currency": "EUR", "min_price": 1.00, "url": "https://www.willhaben.at/iad/kaufen-und-verkaufen/marktplatz?keyword=H%C3%B6rmann+homee"},
 
     # --- ALLE AMAZON-STORES IN DER UMGEBUNG (NEU & WAREHOUSE / RETOURENKAUF) ---
     {"name": "Amazon.de (Neu & Warehouse)", "currency": "EUR", "url": "https://www.amazon.de/s?k=H%C3%B6rmann+homee"},
@@ -112,120 +112,4 @@ def send_push(shop, title, price, currency, url):
         print(f"[PUSH FEHLER] {e}")
 
 def parse_price(text, min_limit):
-    pattern = r"(?:(?:CHF|EUR|€|Fr\.?)\s*(\d{1,4}['’.,]?\d{2,3}(?:[.,]\d{2}|[.,]-)?)|(\d{1,4}['’.,]?\d{2,3}(?:[.,]\d{2}|[.,]-)?)\s*(?:CHF|EUR|€|Fr\.?))"
-    matches = re.findall(pattern, text, flags=re.I)
-
-    prices = []
-    for m1, m2 in matches:
-        raw_num = m1 or m2
-        clean = raw_num.replace("'", "").replace("’", "").replace(".-", ".00").replace(",-", ".00")
-        if "," in clean and "." in clean:
-            if clean.rfind(",") > clean.rfind("."):
-                clean = clean.replace(".", "").replace(",", ".")
-            else:
-                clean = clean.replace(",", "")
-        elif "," in clean:
-            clean = clean.replace(",", ".")
-        elif clean.count(".") == 1 and len(clean.split(".")[1]) == 3:
-            clean = clean.replace(".", "")
-        try:
-            val = float(clean)
-            if min_limit <= val <= 1000:
-                prices.append(val)
-        except ValueError:
-            continue
-    return min(prices) if prices else None
-
-def is_valid_homee(text):
-    t = text.lower()
-    if "homee" not in t:
-        return False
-    if not any(brand in t for brand in ["hörmann", "hoermann", "hormann"]):
-        return False
-    if any(bad in t for bad in BLACKLIST):
-        return False
-    return True
-
-async def scan_target(semaphore, context, target, seen_cache):
-    async with semaphore:
-        page = await context.new_page()
-        currency = target["currency"]
-        min_limit = MIN_PREIS_CHF if currency == "CHF" else MIN_PREIS_EUR
-        max_limit = MAX_PREIS_CHF if currency == "CHF" else MAX_PREIS_EUR
-        hits = 0
-
-        try:
-            await page.goto(target["url"], wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(4000)
-
-            cards = await page.locator("a, article, li, div").filter(
-                has_text=re.compile(r"homee", re.I)
-            ).all()
-
-            for card in cards[:65]:
-                try:
-                    raw_text = await card.inner_text(timeout=350)
-                    if len(raw_text) > 400 or len(raw_text) < 15:
-                        continue
-                    if not is_valid_homee(raw_text):
-                        continue
-
-                    price = parse_price(raw_text, min_limit)
-                    if price and price <= max_limit:
-                        lines = [l.strip() for l in raw_text.splitlines() if "homee" in l.lower()]
-                        title = lines[0][:90] if lines else "Hörmann homee Brain"
-
-                        href = await card.get_attribute("href")
-                        if not href:
-                            sub_link = card.locator("a").first
-                            if await sub_link.count() > 0:
-                                href = await sub_link.get_attribute("href")
-
-                        full_url = target["url"]
-                        if href:
-                            if href.startswith("http"):
-                                full_url = href
-                            elif href.startswith("/"):
-                                base = "/".join(target["url"].split("/")[:3])
-                                full_url = base + href
-
-                        deal_hash = hashlib.md5(f"{target['name']}_{int(price)}_{title[:35]}".encode()).hexdigest()
-                        if deal_hash not in seen_cache:
-                            seen_cache.add(deal_hash)
-                            send_push(target["name"], title, price, currency, full_url)
-                            hits += 1
-                except Exception:
-                    continue
-
-            print(f"[OK] {target['name']}: {hits} neue Treffer ({min_limit}-{max_limit} {currency})")
-
-        except Exception as e:
-            print(f"[ÜBERSPRUNGEN] {target['name']}: {str(e).splitlines()[0]}")
-        finally:
-            await page.close()
-
-async def main():
-    seen_cache = load_cache()
-    semaphore = asyncio.Semaphore(PARALLELE_TABS)
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
-        )
-        context = await browser.new_context(
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            locale="de-CH",
-            viewport={"width": 1366, "height": 900}
-        )
-
-        await context.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf}", lambda route: route.abort())
-
-        tasks = [scan_target(semaphore, context, target, seen_cache) for target in TARGETS]
-        await asyncio.gather(*tasks)
-
-        await browser.close()
-    save_cache(seen_cache)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    pattern = r"(?:(?:CHF|EUR|€|Fr\.?)\s*(\d{1,4}['’.,]?\d{1,3}(?:[.,]\d{2}|[.,]-)?)|(\d{1,4}['’.,]?\d{1
