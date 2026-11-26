@@ -24,17 +24,18 @@ CACHE_FILE = "seen_deals.json"
 PARALLELE_TABS = 4
 
 # ==========================================
-# 3. AUSSCHLUSS-FILTER
+# 3. AUSSCHLUSS-FILTER (INKL. BLAUER ZUSATZ-CUBE)
 # ==========================================
 BLACKLIST = [
     "netzteil", "kabel", "wandhalterung", "halterung", "ovp", "verpackung",
     "leerkarton", "defekt", "bastler", "handsender", "hse", "hsm", "hs5",
     "z-wave", "zwave", "zigbee", "enocean", "warema", "centronic",
+    "bisecur-cube", "bisecur cube", "erweiterung", "zusatzwürfel",
     "abgelaufen", "beendet", "ausverkauft", "expired"
 ]
 
 # ==========================================
-# 4. KLEINANZEIGEN, EU-AMAZONS & TOR-FACHHÄNDLER
+# 4. KLEINANZEIGEN, EU-AMAZONS & TOR-FACHHÄNDLER (ALLE 34 QUELLEN)
 # ==========================================
 TARGETS = [
     # --- KLEINANZEIGEN & GEBRAUCHTMARKT (CH, DE, AT) ---
